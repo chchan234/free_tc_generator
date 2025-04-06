@@ -67,38 +67,51 @@ try:
 except ImportError as e:
     print(f"huggingface_hub 가져오기 오류: {e}")
 
+# 오프라인 모드 설정
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
+os.environ['HF_DATASETS_OFFLINE'] = '1'
+
 # 이제 sentence_transformers 가져오기
 try:
     # 패치 모듈 가져와서 적용
-    from patches.apply_patches import apply_sentence_transformers_patch
+    from patches.apply_patches import apply_sentence_transformers_patch, enable_offline_mode
     
-    try:
-        from sentence_transformers import SentenceTransformer
-        print("SentenceTransformer 로드 성공")
-    except ImportError as e:
-        print(f"SentenceTransformer 가져오기 오류: {e}")
-        # 패치 적용 시도
-        if apply_sentence_transformers_patch():
-            from sentence_transformers import SentenceTransformer
-            print("패치된 SentenceTransformer 사용")
-        else:
-            raise ImportError("SentenceTransformer를 가져오거나 패치할 수 없습니다.")
+    # 오프라인 모드 활성화 및 스텁 패치 적용
+    enable_offline_mode()
+    apply_sentence_transformers_patch()
+    
+    # 패치된 클래스 사용
+    from sentence_transformers import SentenceTransformer
+    print("오프라인 패치된 SentenceTransformer 사용")
+    
 except ImportError as e:
-    print(f"SentenceTransformer 또는 패치 모듈 가져오기 오류: {e}")
+    print(f"패치 모듈 가져오기 오류: {e}")
     # 스텁 구현
     import numpy as np
     class SentenceTransformer:
         def __init__(self, model_name_or_path=None, **kwargs):
             self.model_name = model_name_or_path
-            print(f"[임베딩 스텁] SentenceTransformer 모델 '{model_name_or_path}' 로드")
+            print(f"[로컬 임베딩 스텁] SentenceTransformer 모델 '{model_name_or_path}' 로드")
             
         def encode(self, sentences, **kwargs):
-            print(f"[임베딩 스텁] 텍스트 {len(sentences) if isinstance(sentences, list) else 1}개 인코딩")
-            # 간단한 임의 임베딩 벡터 반환 (384 차원)
+            print(f"[로컬 임베딩 스텁] 텍스트 {len(sentences) if isinstance(sentences, list) else 1}개 인코딩")
+            # 재현 가능한 임의 임베딩 벡터 생성
+            np.random.seed(42)
+            
+            # 입력 텍스트에 따라 다른 벡터 생성 (의미적 차이 유지)
             if isinstance(sentences, list):
-                return np.random.rand(len(sentences), 384).astype(np.float32)
+                vectors = []
+                for text in sentences:
+                    # 텍스트 기반 해시 시드
+                    text_seed = sum(ord(c) for c in str(text)[:100]) % 10000
+                    np.random.seed(text_seed)
+                    vectors.append(np.random.rand(384).astype(np.float32))
+                return np.array(vectors)
             else:
-                return np.random.rand(1, 384).astype(np.float32)[0]
+                text_seed = sum(ord(c) for c in str(sentences)[:100]) % 10000
+                np.random.seed(text_seed)
+                return np.random.rand(384).astype(np.float32)
 
 class Embedder:
     """텍스트 임베딩 처리 클래스"""

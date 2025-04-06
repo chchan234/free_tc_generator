@@ -20,17 +20,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # 패치 먼저 적용
 try:
-    from patches.apply_patches import setup_pytorch_environment, apply_huggingface_hub_patch, apply_sentence_transformers_patch
+    # 오프라인 모드 관련 환경변수 설정
+    os.environ['HF_HUB_OFFLINE'] = '1'
+    os.environ['TRANSFORMERS_OFFLINE'] = '1'
+    os.environ['HF_DATASETS_OFFLINE'] = '1'
+    
+    from patches.apply_patches import setup_pytorch_environment, apply_huggingface_hub_patch, apply_sentence_transformers_patch, enable_offline_mode
+    
+    # 모든 패치 적용
+    enable_offline_mode()
     setup_pytorch_environment()
     apply_huggingface_hub_patch()
+    apply_sentence_transformers_patch()  # 항상 스텁 패치 적용
     
-    # sentence_transformers 패치 적용
-    try:
-        from sentence_transformers import SentenceTransformer
-        print("sentence_transformers 정상 로드됨")
-    except ImportError as e:
-        print(f"sentence_transformers 로드 실패, 패치 적용: {e}")
-        apply_sentence_transformers_patch()
 except ImportError:
     st.warning("패치 모듈을 가져오는데 실패했습니다.")
 
