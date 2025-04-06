@@ -185,12 +185,32 @@ def main():
         )
         
         if uploaded_file is not None:
-            # 임시 파일로 저장
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                temp_file_path = tmp_file.name
-            
-            st.success(f"'{uploaded_file.name}' 파일이 업로드되었습니다!")
+            try:
+                # 데이터 디렉토리 확인 및 생성
+                if not os.path.exists("data"):
+                    os.makedirs("data", exist_ok=True)
+                
+                # 고정 임시 파일 경로 사용 (디버깅용)
+                fixed_temp_dir = os.path.join(os.path.abspath("data"), "temp")
+                os.makedirs(fixed_temp_dir, exist_ok=True)
+                
+                # 파일 확장자 확인
+                file_ext = os.path.splitext(uploaded_file.name)[1]
+                st.write(f"파일 형식: {file_ext}")
+                
+                # 임시 파일로 저장
+                temp_file_path = os.path.join(fixed_temp_dir, f"uploaded{file_ext}")
+                with open(temp_file_path, "wb") as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                
+                st.write(f"임시 파일 저장됨: {temp_file_path}")
+                st.write(f"파일 크기: {os.path.getsize(temp_file_path)} 바이트")
+                
+                st.success(f"'{uploaded_file.name}' 파일이 업로드되었습니다!")
+            except Exception as upload_error:
+                st.error(f"파일 업로드 처리 오류: {upload_error}")
+                import traceback
+                st.code(traceback.format_exc())
             
             # 세션 상태에 파일 경로 저장
             st.session_state.uploaded_file_path = temp_file_path
@@ -202,19 +222,44 @@ def main():
                     with st.spinner("문서를 처리하고 있습니다..."):
                         # 1. 문서 처리
                         st.info("1/4 단계: 문서를 텍스트로 추출하고 청크로 분할 중...")
-                        chunks = process_document(
-                            st.session_state.uploaded_file_path, 
-                            chunk_size=chunk_size, 
-                            chunk_overlap=chunk_overlap
-                        )
+                        try:
+                            # 디버깅을 위한 정보 출력
+                            st.write(f"파일 경로: {st.session_state.uploaded_file_path}")
+                            st.write(f"파일 존재 여부: {os.path.exists(st.session_state.uploaded_file_path)}")
+                            
+                            chunks = process_document(
+                                st.session_state.uploaded_file_path, 
+                                chunk_size=chunk_size, 
+                                chunk_overlap=chunk_overlap
+                            )
+                            st.write(f"처리된 청크 수: {len(chunks)}")
+                        except Exception as doc_error:
+                            st.error(f"문서 처리 오류: {doc_error}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                            raise
                         
                         # 2. 임베딩 생성
                         st.info("2/4 단계: 텍스트 청크 임베딩 생성 중...")
-                        embedded_chunks = create_embeddings(chunks)
+                        try:
+                            embedded_chunks = create_embeddings(chunks)
+                            st.write(f"임베딩된 청크 수: {len(embedded_chunks)}")
+                        except Exception as emb_error:
+                            st.error(f"임베딩 생성 오류: {emb_error}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                            raise
                         
                         # 3. 벡터 DB 구축
                         st.info("3/4 단계: 벡터 DB 구축 중...")
-                        vector_db = build_vector_db(embedded_chunks, vector_db_dir)
+                        try:
+                            vector_db = build_vector_db(embedded_chunks, vector_db_dir)
+                            st.write(f"벡터 DB 디렉토리: {vector_db_dir}")
+                        except Exception as db_error:
+                            st.error(f"벡터 DB 구축 오류: {db_error}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                            raise
                         
                         # 4. 원본 텍스트 저장
                         original_text = "\n".join([chunk['text'] for chunk in chunks])

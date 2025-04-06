@@ -29,29 +29,59 @@ def extract_text(file_path: str) -> str:
 
 def _extract_from_docx(file_path: str) -> str:
     """DOCX 파일에서 텍스트를 추출"""
-    doc = docx.Document(file_path)
-    full_text = []
-    
-    for para in doc.paragraphs:
-        full_text.append(para.text)
-    
-    # 표(tables)에서 텍스트 추출
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                full_text.append(cell.text)
-    
-    return '\n'.join(full_text)
+    try:
+        doc = docx.Document(file_path)
+        full_text = []
+        
+        # 디버깅 정보
+        print(f"DOCX 파일 처리: {file_path}")
+        print(f"단락 수: {len(doc.paragraphs)}")
+        
+        for para in doc.paragraphs:
+            full_text.append(para.text)
+        
+        # 표(tables)에서 텍스트 추출
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    full_text.append(cell.text)
+        
+        return '\n'.join(full_text)
+    except Exception as e:
+        print(f"DOCX 파일 처리 중 오류: {str(e)}")
+        # 파일 존재 여부 확인
+        import os
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            print(f"파일은 존재함 (크기: {file_size} 바이트)")
+        else:
+            print(f"파일이 존재하지 않음: {file_path}")
+        raise
 
 def _extract_from_pdf(file_path: str) -> str:
     """PDF 파일에서 텍스트를 추출"""
-    doc = fitz.open(file_path)
-    full_text = []
-    
-    for page in doc:
-        full_text.append(page.get_text())
-    
-    return '\n'.join(full_text)
+    try:
+        doc = fitz.open(file_path)
+        full_text = []
+        
+        # 디버깅 정보
+        print(f"PDF 파일 처리: {file_path}")
+        print(f"페이지 수: {len(doc)}")
+        
+        for page in doc:
+            full_text.append(page.get_text())
+        
+        return '\n'.join(full_text)
+    except Exception as e:
+        print(f"PDF 파일 처리 중 오류: {str(e)}")
+        # 파일 존재 여부 확인
+        import os
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            print(f"파일은 존재함 (크기: {file_size} 바이트)")
+        else:
+            print(f"파일이 존재하지 않음: {file_path}")
+        raise
 
 def split_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> List[str]:
     """
